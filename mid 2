@@ -1,0 +1,389 @@
+Here are the complete MongoDB practical answers for Scenario A2 and Scenario A4, with commands in order. You can directly write these in your practical exam and execute them in mongosh.
+
+Scenario A2: Student Records – Insert, Query, Sort and Project
+
+Database: collegeDB Collection: students
+
+Step 1: Select database
+
+use collegeDB
+
+Step 2: Insert Arun using insertOne()
+
+db.students.insertOne({
+    _id: 101,
+    name: "Arun",
+    dept: "CSE",
+    marks: 78,
+    scores: [
+        {subject: "DBMS", mark: 85},
+        {subject: "Maths", mark: 70}
+    ]
+})
+
+Output:
+
+{
+    acknowledged: true,
+    insertedId: 101
+}
+
+Step 3: Try inserting duplicate _id
+
+db.students.insertOne({
+    _id: 101,
+    name: "Arun Kumar",
+    dept: "CSE",
+    marks: 80
+})
+
+Output:
+
+E11000 duplicate key error
+
+Reason: _id is the primary key in MongoDB. It must be unique. Duplicate _id values are not allowed.
+
+Step 4: Insert remaining five students using insertMany()
+
+db.students.insertMany([
+{
+    _id: 102,
+    name: "Bala",
+    dept: "IT",
+    marks: 66,
+    scores: [
+        {subject: "DBMS", mark: 60},
+        {subject: "Maths", mark: 72}
+    ]
+},
+{
+    _id: 103,
+    name: "Chitra",
+    dept: "CSE",
+    marks: 91,
+    scores: [
+        {subject: "DBMS", mark: 95},
+        {subject: "Maths", mark: 87}
+    ]
+},
+{
+    _id: 104,
+    name: "Divya",
+    dept: "ECE",
+    marks: 72,
+    scores: [
+        {subject: "DBMS", mark: 55},
+        {subject: "Maths", mark: 89}
+    ]
+},
+{
+    _id: 105,
+    name: "Eswar",
+    dept: "IT",
+    marks: 84,
+    scores: [
+        {subject: "DBMS", mark: 88},
+        {subject: "Maths", mark: 80}
+    ]
+},
+{
+    _id: 106,
+    name: "Farah",
+    dept: "CSE",
+    marks: 59,
+    scores: [
+        {subject: "DBMS", mark: 45},
+        {subject: "Maths", mark: 73}
+    ]
+}
+])
+
+Output:
+
+{
+    acknowledged: true,
+    insertedIds: {
+        '0': 102,
+        '1': 103,
+        '2': 104,
+        '3': 105,
+        '4': 106
+    }
+}
+
+Step 5: Display all CSE department students
+
+db.students.find({dept: "CSE"})
+
+Output: Arun, Chitra and Farah.
+
+Step 6: Find students whose marks are 75 or more
+
+db.students.find({
+    marks: {$gte: 75}
+})
+
+Output: Arun (78), Chitra (91) and Eswar (84).
+
+Step 7: Find students belonging to CSE or IT
+
+db.students.find({
+    dept: {$in: ["CSE", "IT"]}
+})
+
+Output: Arun, Bala, Chitra, Eswar and Farah.
+
+Step 8: Find students who scored more than 80 in DBMS
+
+db.students.find({
+    scores: {
+        $elemMatch: {
+            subject: "DBMS",
+            mark: {$gt: 80}
+        }
+    }
+})
+
+Output: Arun (85), Chitra (95) and Eswar (88).
+
+Important: $elemMatch ensures that both conditions are satisfied by the same array element.
+
+Step 9: Display top 3 students with highest marks
+
+db.students.find(
+    {},
+    {
+        _id: 0,
+        name: 1,
+        marks: 1
+    }
+).sort({marks: -1}).limit(3)
+
+Output:
+
+[
+    {name: "Chitra", marks: 91},
+    {name: "Eswar", marks: 84},
+    {name: "Arun", marks: 78}
+]
+
+Scenario A2 completed
+
+Scenario A4: Banking App – Building and Checking a Replica Set
+
+Database: bankDB Replica Set Name: rs0 Ports: 27017, 27018, 27019
+
+Step 1: Create three folders
+
+Open Windows CMD and execute:
+
+mkdir C:\data\rs0-1
+mkdir C:\data\rs0-2
+mkdir C:\data\rs0-3
+
+Step 2: Start three MongoDB servers
+
+Open three separate CMD windows.
+
+CMD Window 1:
+
+mongod --replSet rs0 --port 27017 --dbpath C:\data\rs0-1
+
+CMD Window 2:
+
+mongod --replSet rs0 --port 27018 --dbpath C:\data\rs0-2
+
+CMD Window 3:
+
+mongod --replSet rs0 --port 27019 --dbpath C:\data\rs0-3
+
+Keep all three windows running.
+
+Step 3: Connect and initiate replica set
+
+Open another CMD window:
+
+mongosh --port 27017
+
+Execute:
+
+rs.initiate({
+    _id: "rs0",
+    members: [
+        {_id: 0, host: "localhost:27017"},
+        {_id: 1, host: "localhost:27018"},
+        {_id: 2, host: "localhost:27019"}
+    ]
+})
+
+Output:
+
+{ok: 1}
+
+Wait a few seconds for the election.
+
+Why is replication used?
+
+* Replication provides high availability and automatic failover if a server crashes.
+* It provides data redundancy and allows read operations to be distributed across secondary servers.
+
+Step 4: Identify PRIMARY and SECONDARY
+
+rs.status()
+
+Or:
+
+rs.status().members.map(m => ({
+    name: m.name,
+    state: m.stateStr,
+    health: m.health
+}))
+
+Expected output:
+
+[
+    {
+        name: "localhost:27017",
+        state: "PRIMARY",
+        health: 1
+    },
+    {
+        name: "localhost:27018",
+        state: "SECONDARY",
+        health: 1
+    },
+    {
+        name: "localhost:27019",
+        state: "SECONDARY",
+        health: 1
+    }
+]
+
+Note: The actual primary can be any one of the three servers.
+
+Step 5: Insert account using write concern majority
+
+use bankDB
+db.accounts.insertOne(
+    {
+        accNo: 1001,
+        holder: "Kumar",
+        balance: 5000
+    },
+    {
+        writeConcern: {
+            w: "majority",
+            wtimeout: 5000
+        }
+    }
+)
+
+Expected output:
+
+{
+    acknowledged: true,
+    insertedId: ObjectId("...")
+}
+
+Explanation:
+
+* w: "majority" means MongoDB waits until a majority of replica set members acknowledge the write.
+* wtimeout: 5000 means it waits up to 5 seconds.
+
+Step 6: Set read preference to secondaryPreferred
+
+First connect using the replica set connection string from a new CMD:
+
+mongosh "mongodb://localhost:27017,localhost:27018,localhost:27019/bankDB?replicaSet=rs0"
+
+Then execute:
+
+db.getMongo().setReadPref("secondaryPreferred")
+
+Read the account:
+
+db.accounts.find()
+
+Expected output:
+
+[
+    {
+        _id: ObjectId("..."),
+        accNo: 1001,
+        holder: "Kumar",
+        balance: 5000
+    }
+]
+
+Explanation: secondaryPreferred reads from a secondary if available; otherwise, it reads from the primary.
+
+Step 7: Inspect the oplog
+
+db.getSiblingDB("local").oplog.rs.find({
+    ns: "bankDB.accounts"
+}).sort({
+    $natural: -1
+}).limit(5)
+
+Expected output:
+
+{
+    op: "i",
+    ns: "bankDB.accounts",
+    o: {
+        accNo: 1001,
+        holder: "Kumar",
+        balance: 5000
+    }
+}
+
+Explanation: Oplog (Operation Log) records database operations such as insert, update and delete. Secondary servers use it to replicate changes.
+
+Step 8: Force the primary to step down
+
+Connect to the current PRIMARY and execute:
+
+rs.stepDown(60)
+
+Expected result: The current primary steps down for 60 seconds, and another eligible secondary is elected as the new primary.
+
+Check the new primary:
+
+rs.status()
+
+Step 9: Check replica set health and replication lag
+
+rs.status()
+
+To check replication lag:
+
+rs.printSecondaryReplicationInfo()
+
+Expected result:
+
+* One member is PRIMARY.
+* Two members are SECONDARY.
+* All healthy members show health as 1.
+* Replication lag should normally be small.
+
+Scenario A4 completed
+
+Important MongoDB commands for practical viva
+
+Command	Purpose
+insertOne()	Insert one document
+insertMany()	Insert multiple documents
+find()	Display documents
+$gte	Greater than or equal to
+$gt	Greater than
+$in	Match multiple values
+$elemMatch	Match conditions in same array element
+sort({marks:-1})	Sort descending
+limit(3)	Display only 3 documents
+rs.initiate()	Start replica set
+rs.status()	Check replica set status
+rs.stepDown()	Force primary to step down
+setReadPref()	Set read preference
+oplog.rs	View operation log
+
+My practical exam tip: Give extra attention to $in, $elemMatch, $gte, sort(), limit(), insertOne(), insertMany() and replica set commands. These are the main concepts tested in your two scenarios.
